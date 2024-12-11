@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'model.dart';
 
-Future<List<NewsApiModel>> getNews() async {
+Future<List<NewsApiModel>> getNews({required String category}) async {
   Uri uri = Uri.parse(
     "https://newsapi.org/v2/top-headlines?country=us&apiKey=8fa00ba1169d491bb7a76a8a2e9c7cfe",
   );

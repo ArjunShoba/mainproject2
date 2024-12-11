@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mainproject_2/article_detail.dart';
 import 'package:mainproject_2/newsmodelApi.dart';
+
 import 'model.dart';
-import 'article_detail.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -12,70 +13,179 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<NewsApiModel>> futureNews;
+  String selectedCategory = 'business'; // Default category
+  TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    futureNews = getNews();
+    futureNews = getNews(category: selectedCategory);
+  }
+
+  void _updateCategory(String category) {
+    setState(() {
+      selectedCategory = category;
+      futureNews = getNews(category: selectedCategory);
+    });
+  }
+
+  void _updateSearchQuery(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('News Headlines'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: NewsSearchDelegate(futureNews),
-              );
-            },
+        title: const Text('News x24'),
+        backgroundColor: Colors.blue, // Set AppBar background color
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildCategoryButton('Business', Icons.business, 'business'),
+                _buildCategoryButton(
+                    'Entertainment', Icons.movie, 'entertainment'),
+                _buildCategoryButton('Sports', Icons.sports, 'sports'),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _updateSearchQuery,
+              decoration: InputDecoration(
+                labelText: 'Search News',
+                border: OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    showSearch(
+                      context: context,
+                      delegate:
+                          NewsSearchDelegate(futureNews, query: _searchQuery),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<NewsApiModel>>(
+              future: futureNews,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('No articles found.'));
+                } else {
+                  List<NewsApiModel> articles = snapshot.data!;
+
+                  if (_searchQuery.isNotEmpty) {
+                    articles = articles.where((article) {
+                      return article.title
+                              .toLowerCase()
+                              .contains(_searchQuery.toLowerCase()) ||
+                          article.description
+                              .toLowerCase()
+                              .contains(_searchQuery.toLowerCase());
+                    }).toList();
+                  }
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: articles.map((article) {
+                        return Card(
+                          margin: const EdgeInsets.all(8.0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                article.urlToImage.isNotEmpty
+                                    ? Image.network(
+                                        article.urlToImage,
+                                        width: double.infinity,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : const Icon(Icons.image_not_supported,
+                                        size: 100),
+                                const SizedBox(height: 8),
+                                Text(
+                                  article.title,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  article.description,
+                                  style: const TextStyle(fontSize: 14),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ArticleDetailPage(
+                                                  article: article),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text('Read More'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                }
+              },
+            ),
           ),
         ],
       ),
-      body: FutureBuilder<List<NewsApiModel>>(
-        future: futureNews,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No articles found.'));
-          } else {
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final article = snapshot.data![index];
-                return Card(
-                  margin: const EdgeInsets.all(8.0),
-                  child: ListTile(
-                    leading: article.urlToImage.isNotEmpty
-                        ? Image.network(article.urlToImage,
-                            width: 50, height: 50, fit: BoxFit.cover)
-                        : const Icon(Icons.image_not_supported),
-                    title: Text(article.title,
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(article.description,
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ArticleDetailPage(article: article),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            );
-          }
-        },
+    );
+  }
+
+  Widget _buildCategoryButton(String label, IconData icon, String category) {
+    return GestureDetector(
+      onTap: () => _updateCategory(category),
+      child: Column(
+        children: [
+          Icon(icon,
+              size: 30,
+              color: selectedCategory == category ? Colors.blue : Colors.grey),
+          const SizedBox(height: 4),
+          Text(label,
+              style: TextStyle(
+                  color: selectedCategory == category
+                      ? Colors.blue
+                      : Colors.grey)),
+        ],
       ),
     );
   }
@@ -83,8 +193,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class NewsSearchDelegate extends SearchDelegate {
   final Future<List<NewsApiModel>> futureNews;
+  final String query;
 
-  NewsSearchDelegate(this.futureNews);
+  NewsSearchDelegate(this.futureNews, {required this.query});
 
   @override
   List<Widget>? buildActions(BuildContext context) {
