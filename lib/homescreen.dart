@@ -26,7 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _updateCategory(String category) {
     setState(() {
       selectedCategory = category;
-      futureNews = getNews(category: selectedCategory);
+      futureNews = getNews(
+          category: selectedCategory); // Fetch news for the selected category
     });
   }
 
@@ -40,8 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('News x24'),
-        backgroundColor: Colors.blue, // Set AppBar background color
+        title: const Text('News Headlines'),
       ),
       body: Column(
         children: [
@@ -57,11 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          // TextField for search
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               controller: _searchController,
-              onChanged: _updateSearchQuery,
+              onChanged: _updateSearchQuery, // Update search query dynamically
               decoration: InputDecoration(
                 labelText: 'Search News',
                 border: OutlineInputBorder(),
@@ -91,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else {
                   List<NewsApiModel> articles = snapshot.data!;
 
+                  // Filter the articles based on search query
                   if (_searchQuery.isNotEmpty) {
                     articles = articles.where((article) {
                       return article.title
@@ -112,6 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Larger Image
                                 article.urlToImage.isNotEmpty
                                     ? Image.network(
                                         article.urlToImage,
@@ -122,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     : const Icon(Icons.image_not_supported,
                                         size: 100),
                                 const SizedBox(height: 8),
+                                // Title
                                 Text(
                                   article.title,
                                   style: const TextStyle(
@@ -132,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 4),
+                                // Description
                                 Text(
                                   article.description,
                                   style: const TextStyle(fontSize: 14),
@@ -139,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
+                                // Read More Button
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(
@@ -176,15 +182,18 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () => _updateCategory(category),
       child: Column(
         children: [
-          Icon(icon,
-              size: 30,
-              color: selectedCategory == category ? Colors.blue : Colors.grey),
+          Icon(
+            icon,
+            size: 30,
+            color: selectedCategory == category ? Colors.blue : Colors.grey,
+          ),
           const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(
-                  color: selectedCategory == category
-                      ? Colors.blue
-                      : Colors.grey)),
+          Text(
+            label,
+            style: TextStyle(
+              color: selectedCategory == category ? Colors.blue : Colors.grey,
+            ),
+          ),
         ],
       ),
     );
@@ -221,55 +230,61 @@ class NewsSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildResults(BuildContext context) {
-    return FutureBuilder<List<NewsApiModel>>(
-      future: futureNews,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No articles found.'));
-        } else {
-          final results = snapshot.data!.where((article) {
-            return article.title.toLowerCase().contains(query.toLowerCase()) ||
-                article.description.toLowerCase().contains(query.toLowerCase());
-          }).toList();
+    return Expanded(
+      child: FutureBuilder<List<NewsApiModel>>(
+        future: futureNews,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No articles found.'));
+          } else {
+            List<NewsApiModel> articles = snapshot.data!;
 
-          if (results.isEmpty) {
-            return const Center(child: Text('No articles match your search.'));
+            // Display the articles for the selected category
+            return ListView.builder(
+              itemCount: articles.length,
+              itemBuilder: (context, index) {
+                final article = articles[index];
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    leading: article.urlToImage.isNotEmpty
+                        ? Image.network(
+                            article.urlToImage,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                          )
+                        : const Icon(Icons.image_not_supported),
+                    title: Text(
+                      article.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      article.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ArticleDetailPage(article: article),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            );
           }
-
-          return ListView.builder(
-            itemCount: results.length,
-            itemBuilder: (context, index) {
-              final article = results[index];
-              return Card(
-                margin: const EdgeInsets.all(8.0),
-                child: ListTile(
-                  leading: article.urlToImage.isNotEmpty
-                      ? Image.network(article.urlToImage,
-                          width: 50, height: 50, fit: BoxFit.cover)
-                      : const Icon(Icons.image_not_supported),
-                  title: Text(article.title,
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(article.description,
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ArticleDetailPage(article: article),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          );
-        }
-      },
+        },
+      ),
     );
   }
 
